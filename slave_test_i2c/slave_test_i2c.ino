@@ -14,10 +14,11 @@
 
 #include <ArduinoJson.h>
 #include "dht.h"
-#define dht_apin A4 // Analog Pin sensor is connected to
+#define dht_apin A1 // Analog Pin sensor is connected to
  
 dht DHT;
 String memory;
+String data;
 String readString; //main captured String 
 String pirLED; //data String
 String gasLED;
@@ -25,15 +26,15 @@ String humidityLED;
 String lightLED;
 
 
-int LEDpir = 11;
-int LEDgas = 12;
-int LEDhumidity = 13;
-int LEDlight = 10;
+//int LEDpir = 11;
+//int LEDgas = 12;
+//int LEDhumidity = 13;
+//int LEDlight = 10;
 int PIRPin = A0; // select the input pin for LDR
-int GasPin = A1;
+//int GasPin = A1;
 int LightPin = A2;
 int HumidityPin = dht_apin;
-
+int ServoPin = 8;
 
 
 int PIRValue = 0; // variable to store the value coming from the sensor
@@ -47,6 +48,7 @@ void setup() {
   Wire.onReceive(receiveEvent); // register event
   Wire.onRequest(requestEvent); // register event
   Serial.begin(9600);
+  pinMode(ServoPin, OUTPUT);
 }
 
 void loop() {
@@ -59,24 +61,40 @@ void loop() {
 void requestEvent() {
   if(memory.length() == 0){
      PIRValue = analogRead(PIRPin);
-     GasValue = analogRead(GasPin);
+     //GasValue = analogRead(GasPin);
      LightValue = analogRead(LightPin);
      DHT.read11(dht_apin);
      //HumidityValue = analogRead(HumidityPin);
      HumidityValue = DHT.humidity;
      TemperatureValue = DHT.temperature;
+     digitalWrite(ServoPin, HIGH);
+     delayMicroseconds(1500);
+     digitalWrite(ServoPin, LOW);
 
-    StaticJsonBuffer<200> jsonBuffer;
+     DynamicJsonBuffer jsonBuffer;
     JsonObject& root = jsonBuffer.createObject();
-    root["pir"] = PIRValue;
-    root["gas"] = GasValue;
-    root["humidity"] = HumidityValue;
-    root["temperature"] = TemperatureValue;
-    root["light"] = LightValue;
+    
+    JsonObject& room = root.createNestedObject("sensors");
+    room["pir"] = PIRValue;
+    room["gas"] = GasValue;
+    room["humidity"] = HumidityValue;
+    room["temperature"] = TemperatureValue;
+    room["light"] = LightValue;
+
+    
+    root["room_name"] = "bedroom";
+    root["home_id"] = 3; 
+    
+    //root.prettyPrintTo(Serial);
+  
     
     root.printTo(memory);
+
+    //StaticJsonBuffer<200> jsonBuffer1;
+    
+    
     memory += "*";
-    //memory = String(PIRValue) + "," + String(GasValue) + "," + String(LightValue) + "," + String(HumidityValue) + "," + String(TemperatureValue) + "Hi Serik how are you. This is test code. Do you see it all.*";
+    //memory = String(PIRValue) + "," + String(GasValue) + "," + String(LightValue) + "," +re String(HumidityValue) + "," + String(TemperatureValue) + "Hi Serik how are you. This is test code. Do you see it all.*";
     //respond with message of 6 bytes  
     }
 
@@ -89,12 +107,25 @@ void requestEvent() {
 
 void receiveEvent(int howMany) {
   bool x = true;
-  String data = "";
+ 
   while (Wire.available()) { // loop through all but the last
     char c = Wire.read(); // receive byte as a character
     if (c == '*') x = false;
      if (x) data += c;
   }
-  Serial.print(data);
-  if (!x) Serial.println("");
+
+  if (!x){
+    
+    DynamicJsonBuffer jsonBuffer;
+    //Serial.println("Data 1 is: ");
+    //Serial.println(data);
+    JsonObject& object = jsonBuffer.parseObject(data);
+    //Serial.println(object.success());
+    //Serial.println("Data 2 is: ");
+    Serial.println(data);
+    //Serial.println("Serial is: ");
+    //object.printTo(Serial);
+    Serial.println("");
+    data = "";
+  }
 }
